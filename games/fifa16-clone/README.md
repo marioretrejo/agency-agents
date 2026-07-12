@@ -19,6 +19,8 @@ python3 -m http.server 8080   # → http://localhost:8080
 
 ## Controles
 
+### 1 jugador (vs CPU)
+
 | Tecla | Acción |
 |---|---|
 | **WASD / Flechas** | Mover al jugador |
@@ -29,9 +31,31 @@ python3 -m http.server 8080   # → http://localhost:8080
 | **C** | Cambiar de jugador manualmente |
 | **↑↓←→ / Enter** | Navegar el menú |
 
+### 2 jugadores (mismo teclado)
+
+| Acción | Jugador 1 | Jugador 2 |
+|---|---|---|
+| Mover | WASD | Flechas |
+| Pase / entrada | Espacio | L |
+| Disparo (mantener) | E | P |
+| Globo | Q | O |
+| Sprint | Shift | K |
+| Cambiar jugador | C | M |
+
+### Penaltis
+
+Apunta con **arriba/abajo** (la mirilla amarilla marca el punto de la portería)
+y mantén el botón de **disparo** para cargar potencia. Cuidado: a máxima
+potencia el tiro pierde precisión y puede irse fuera.
+
 ## Características
 
 - **11 vs 11** con formación 4-3-3 que se desplaza en bloque según el balón
+- **Modo 2 jugadores** en el mismo teclado (además del modo vs CPU)
+- **Faltas y tarjetas**: las entradas duras se pitan; amarillas acumulables y
+  rojas con expulsión (el equipo se queda con 10)
+- **Penaltis**: las faltas dentro del área se lanzan desde los 11 metros, con
+  mirilla para apuntar y barra de potencia (la CPU también los lanza)
 - **Cámara con scroll** que sigue el balón por un campo de 105 × 68 m
 - **8 equipos ficticios** seleccionables con valoraciones distintas
 - **Física del balón** con altura (z), gravedad, botes, fricción y rebote en los postes
