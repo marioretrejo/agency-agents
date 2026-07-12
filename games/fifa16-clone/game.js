@@ -167,7 +167,109 @@ function inputDir(c) {
   if (m.right.some(k => keys[k])) x += 1;
   if (m.up.some(k => keys[k])) y -= 1;
   if (m.down.some(k => keys[k])) y += 1;
+  if (!x && !y && c === game.humans[0] && touchUI.joyId !== null && touchUI.mag > 0.15) {
+    return norm(touchUI.joyDX, touchUI.joyDY);
+  }
   return norm(x, y);
+}
+
+// ------------------------------------------------ Controles táctiles (móvil)
+const touchUI = {
+  enabled: ("ontouchstart" in window) || navigator.maxTouchPoints > 0,
+  joyId: null, joyBX: 0, joyBY: 0, joyDX: 0, joyDY: 0, mag: 0,
+  pointers: new Map(),   // pointerId -> id de botón
+};
+const JOY_R = 54;
+const TOUCH_BTNS = [
+  { id: "shoot",  label: "TIRO",  x: 876, y: 462, r: 44 },
+  { id: "pass",   label: "PASE",  x: 772, y: 536, r: 38 },
+  { id: "lob",    label: "GLOBO", x: 786, y: 396, r: 30 },
+  { id: "switch", label: "CAM",   x: 682, y: 474, r: 26 },
+];
+
+canvas.style.touchAction = "none";
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+function canvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (VIEW_W / rect.width),
+    y: (e.clientY - rect.top) * (VIEW_H / rect.height),
+  };
+}
+
+canvas.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  if (canvas.setPointerCapture) { try { canvas.setPointerCapture(e.pointerId); } catch (err) {} }
+  const pos = canvasPos(e);
+  if (game.state === "menu") { menuTap(pos); return; }
+  if (game.state === "half" || game.state === "end") { advanceState(); return; }
+  if (!touchUI.enabled) return;
+  const c = game.humans[0];
+  if (!c) return;
+  for (const b of TOUCH_BTNS) {
+    if (dist(pos.x, pos.y, b.x, b.y) <= b.r + 10) {
+      touchUI.pointers.set(e.pointerId, b.id);
+      if (b.id === "pass") c.passReq = true;
+      if (b.id === "lob") c.lobReq = true;
+      if (b.id === "switch") c.switchReq = true;
+      if (b.id === "shoot") { c.shootHeld = true; c.shootCharge = 0; }
+      return;
+    }
+  }
+  if (pos.x < VIEW_W * 0.55 && touchUI.joyId === null) {
+    touchUI.joyId = e.pointerId;
+    touchUI.joyBX = pos.x; touchUI.joyBY = pos.y;
+    touchUI.joyDX = touchUI.joyDY = 0;
+    touchUI.mag = 0;
+  }
+});
+
+canvas.addEventListener("pointermove", (e) => {
+  if (e.pointerId !== touchUI.joyId) return;
+  e.preventDefault();
+  const pos = canvasPos(e);
+  let dx = pos.x - touchUI.joyBX;
+  let dy = pos.y - touchUI.joyBY;
+  const d = Math.hypot(dx, dy);
+  if (d > JOY_R) { dx = dx / d * JOY_R; dy = dy / d * JOY_R; }
+  touchUI.joyDX = dx;
+  touchUI.joyDY = dy;
+  touchUI.mag = Math.min(d / JOY_R, 1);
+});
+
+function releasePointer(e) {
+  if (e.pointerId === touchUI.joyId) {
+    touchUI.joyId = null;
+    touchUI.joyDX = touchUI.joyDY = 0;
+    touchUI.mag = 0;
+  }
+  const btn = touchUI.pointers.get(e.pointerId);
+  if (btn) {
+    touchUI.pointers.delete(e.pointerId);
+    const c = game.humans[0];
+    if (btn === "shoot" && c && c.shootHeld) {
+      if (game.state === "play") requestShot(c);
+      else if (game.state === "penalty" && game.penalty && game.penalty.team === c.team) penaltyShoot(c.shootCharge);
+      c.shootHeld = false;
+      c.shootCharge = 0;
+    }
+  }
+}
+canvas.addEventListener("pointerup", releasePointer);
+canvas.addEventListener("pointercancel", releasePointer);
+
+function menuTap(pos) {
+  const colX = 56, colW = 460;
+  for (let i = 0; i < MENU_ROWS; i++) {
+    const y = 156 + i * 74;
+    if (pos.x >= colX && pos.x <= colX + colW && pos.y >= y - 26 && pos.y <= y + 30) {
+      game.menuRow = i;
+      if (i === MENU_ROWS - 1) { startMatch(); return; }
+      menuAdjust(i, pos.x < colX + colW / 2 ? -1 : 1);
+      return;
+    }
+  }
 }
 
 // ------------------------------------------------------------------- Balón
@@ -265,18 +367,20 @@ function displayMinute() {
 
 // -------------------------------------------------------------- Menú inicial
 const MENU_ROWS = 5;
+function menuAdjust(row, step) {
+  if (row === 0) game.menuIndex[0] = (game.menuIndex[0] + step + TEAMS.length) % TEAMS.length;
+  if (row === 1) game.menuIndex[1] = (game.menuIndex[1] + step + TEAMS.length) % TEAMS.length;
+  if (row === 2) game.mode = 1 - game.mode;
+  if (row === 3) game.menuLenIdx = (game.menuLenIdx + step + 3) % 3;
+  beep(300, 0.04, "square", 0.03);
+}
+
 function menuKey(key) {
   const k = key.toLowerCase();
   if (k === "arrowup" || k === "w") game.menuRow = (game.menuRow + MENU_ROWS - 1) % MENU_ROWS;
   if (k === "arrowdown" || k === "s") game.menuRow = (game.menuRow + 1) % MENU_ROWS;
   const step = (k === "arrowleft" || k === "a") ? -1 : (k === "arrowright" || k === "d") ? 1 : 0;
-  if (step !== 0) {
-    if (game.menuRow === 0) game.menuIndex[0] = (game.menuIndex[0] + step + TEAMS.length) % TEAMS.length;
-    if (game.menuRow === 1) game.menuIndex[1] = (game.menuIndex[1] + step + TEAMS.length) % TEAMS.length;
-    if (game.menuRow === 2) game.mode = 1 - game.mode;
-    if (game.menuRow === 3) game.menuLenIdx = (game.menuLenIdx + step + 3) % 3;
-    beep(300, 0.04, "square", 0.03);
-  }
+  if (step !== 0) menuAdjust(game.menuRow, step);
   if ((k === "enter" || k === " ") && game.menuRow === MENU_ROWS - 1) startMatch();
   if ((k === "enter" || k === " ") && game.menuRow !== MENU_ROWS - 1) game.menuRow = Math.min(MENU_ROWS - 1, game.menuRow + 1);
 }
@@ -728,7 +832,8 @@ function updateControlled(c, dt) {
   const p = game.controlled[c.team];
   if (!p) return;
   const dir = inputDir(c);
-  const sprint = c.keymap.sprint.some(k => keys[k]);
+  const sprint = c.keymap.sprint.some(k => keys[k]) ||
+    (c === game.humans[0] && touchUI.joyId !== null && touchUI.mag > 0.92);
   const speed = p.speed * (sprint ? 1.28 : 1) * (ball.owner === p ? 0.92 : 1);
   p.vx = dir.x * speed;
   p.vy = dir.y * speed;
@@ -1358,6 +1463,7 @@ function render() {
 
   drawPenaltyAim();
   drawHUD();
+  drawTouchControls();
   drawRadar();
   if (game.banner) drawBanner();
 }
@@ -1410,20 +1516,77 @@ function drawHUD() {
   }
 
   // ayuda de controles
-  ctx.font = "11px 'Segoe UI', sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(255,255,255,.5)";
-  if (game.mode === 0) {
-    ctx.fillText("WASD/Flechas mover · Espacio pase/entrada · E tiro (mantén) · Q globo · Shift sprint · C cambiar", 16, VIEW_H - 10);
-  } else {
-    ctx.fillText("J1: WASD · Espacio pase · E tiro · Q globo · Shift sprint · C cambiar     J2: Flechas · L pase · P tiro · O globo · K sprint · M cambiar", 16, VIEW_H - 10);
+  if (!touchUI.enabled) {
+    ctx.font = "11px 'Segoe UI', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(255,255,255,.5)";
+    if (game.mode === 0) {
+      ctx.fillText("WASD/Flechas mover · Espacio pase/entrada · E tiro (mantén) · Q globo · Shift sprint · C cambiar", 16, VIEW_H - 10);
+    } else {
+      ctx.fillText("J1: WASD · Espacio pase · E tiro · Q globo · Shift sprint · C cambiar     J2: Flechas · L pase · P tiro · O globo · K sprint · M cambiar", 16, VIEW_H - 10);
+    }
   }
+  ctx.restore();
+}
+
+function drawTouchControls() {
+  if (!touchUI.enabled) return;
+  if (!["play", "kickoff", "goal", "penalty"].includes(game.state)) return;
+  ctx.save();
+
+  // joystick
+  if (touchUI.joyId !== null) {
+    ctx.strokeStyle = "rgba(255,255,255,.4)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(touchUI.joyBX, touchUI.joyBY, JOY_R, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = touchUI.mag > 0.92 ? "rgba(201,247,58,.5)" : "rgba(255,255,255,.35)";
+    ctx.beginPath();
+    ctx.arc(touchUI.joyBX + touchUI.joyDX, touchUI.joyBY + touchUI.joyDY, 26, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = "rgba(255,255,255,.18)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath(); ctx.arc(150, 470, JOY_R, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(255,255,255,.3)";
+    ctx.font = "11px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("MOVER", 150, 474);
+  }
+
+  // botones
+  const c = game.humans[0];
+  for (const b of TOUCH_BTNS) {
+    const pressed = [...touchUI.pointers.values()].includes(b.id);
+    ctx.fillStyle = pressed ? "rgba(201,247,58,.30)" : "rgba(9,12,18,.55)";
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = pressed ? VOLT : "rgba(201,247,58,.45)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.stroke();
+    // carga del tiro alrededor del botón
+    if (b.id === "shoot" && c && c.shootHeld && c.shootCharge > 0) {
+      ctx.strokeStyle = "#ffc107";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r + 5, -Math.PI / 2, -Math.PI / 2 + clamp(c.shootCharge / 0.9, 0, 1) * Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.font = "bold " + (b.r > 35 ? 14 : 11) + "px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(b.label, b.x, b.y);
+  }
+  ctx.textBaseline = "alphabetic";
   ctx.restore();
 }
 
 function drawRadar() {
   const w = 170, h = 108;
-  const x = VIEW_W - w - 16, y = VIEW_H - h - 20;
+  // en táctil el radar sube para dejar sitio a los botones
+  const x = VIEW_W - w - 16;
+  const y = touchUI.enabled ? 52 : VIEW_H - h - 20;
   ctx.save();
   ctx.globalAlpha = 0.88;
   ctx.fillStyle = "rgba(8, 20, 12, .85)";

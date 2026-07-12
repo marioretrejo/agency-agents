@@ -45,6 +45,21 @@ python3 -m http.server 8080   # → http://localhost:8080
 | Sprint | Shift | K |
 | Cambiar jugador | C | M |
 
+### Móvil / táctil
+
+En pantallas táctiles aparecen controles en pantalla automáticamente:
+
+- **Joystick virtual** (mitad izquierda, flotante): tócala y arrastra para mover;
+  llévalo al tope para **esprintar**
+- **PASE** — pase raso (o entrada/presión al defender)
+- **TIRO** — mantén pulsado para cargar potencia (anillo alrededor del botón) y suelta
+- **GLOBO** — pase largo
+- **CAM** — cambiar de jugador
+- El menú se maneja tocando las filas (mitad izquierda ◄ / mitad derecha ►)
+- En los penaltis, apunta con el joystick (arriba/abajo) y usa TIRO
+
+El modo 2 jugadores requiere teclado; en táctil juega el J1.
+
 ### Penaltis
 
 Apunta con **arriba/abajo** (la mirilla amarilla marca el punto de la portería)
@@ -58,6 +73,8 @@ potencia el tiro pierde precisión y puede irse fuera.
 - **Cartas de jugador estrella** estilo FC 26 en el menú (media, posiciones y
   PAC/SHO/PAS/DRI/DEF/PHY) — cada club tiene su estrella
 - **11 vs 11** con formación 4-3-3 que se desplaza en bloque según el balón
+- **Jugable en móvil**: joystick virtual flotante y botones táctiles
+  (con multi-touch: mueve y dispara a la vez), menú por toques
 - **Modo 2 jugadores** en el mismo teclado (además del modo vs CPU)
 - **Faltas y tarjetas**: las entradas duras se pitan; amarillas acumulables y
   rojas con expulsión (el equipo se queda con 10)
