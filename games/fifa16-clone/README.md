@@ -1,11 +1,14 @@
-# ⚽ Fútbol Pro 16 — clon de FIFA 16
+# ⚽ Fútbol Pro 26 — clon estilo EA FC 26
 
-Un juego de fútbol 11 contra 11 jugable en el navegador, inspirado en FIFA 16.
-Hecho con HTML5 Canvas y JavaScript puro: **sin dependencias, sin build, sin servidor**.
+Un juego de fútbol 11 contra 11 jugable en el navegador, inspirado en la saga
+FIFA / EA FC (temporada 2026), con **vista 3D de retransmisión**: cámara en
+perspectiva, estadio con gradas y vallas publicitarias, y jugadores animados.
+Hecho con HTML5 Canvas y JavaScript puro: **sin dependencias, sin build, sin
+servidor**. La simulación es 2D top-down; el render la proyecta a 3D.
 
-> Los equipos y jugadores son ficticios: FIFA es una marca de EA Sports y los
-> nombres/likeness reales están licenciados, así que este clon replica la
-> *jugabilidad*, no las licencias.
+> Los equipos y jugadores son ficticios (Leo Mesta, Kili Bapé, Erlin Halan…):
+> FIFA/EA FC son marcas de EA Sports y los nombres y caras reales están
+> licenciados, así que este clon replica la *jugabilidad*, no las licencias.
 
 ## Cómo jugar
 
@@ -50,19 +53,23 @@ potencia el tiro pierde precisión y puede irse fuera.
 
 ## Características
 
+- **Vista 3D de retransmisión**: proyección en perspectiva real (cámara elevada
+  tras la banda), estadio nocturno con público, focos y vallas con marcas ficticias
+- **Cartas de jugador estrella** estilo FC 26 en el menú (media, posiciones y
+  PAC/SHO/PAS/DRI/DEF/PHY) — cada club tiene su estrella
 - **11 vs 11** con formación 4-3-3 que se desplaza en bloque según el balón
 - **Modo 2 jugadores** en el mismo teclado (además del modo vs CPU)
 - **Faltas y tarjetas**: las entradas duras se pitan; amarillas acumulables y
   rojas con expulsión (el equipo se queda con 10)
 - **Penaltis**: las faltas dentro del área se lanzan desde los 11 metros, con
   mirilla para apuntar y barra de potencia (la CPU también los lanza)
-- **Cámara con scroll** que sigue el balón por un campo de 105 × 68 m
+- **Cámara que panea** siguiendo el balón por un campo a escala de 105 × 68 m
 - **8 equipos ficticios** seleccionables con valoraciones distintas
 - **Física del balón** con altura (z), gravedad, botes, fricción y rebote en los postes
 - **Porteros con IA**: interceptan la trayectoria, atrapan, palmean tiros fuertes y sacan en largo
 - **IA de equipo**: conducción, pases al espacio, tiro según posición, presión y coberturas defensivas
 - **Reglas simplificadas**: saques de banda, córners, saques de puerta y de centro
-- **Presentación estilo FIFA**: marcador con reloj (90' escalados), radar/minimapa, carteles de gol, descanso y final, barra de potencia de tiro
+- **Presentación estilo EA FC**: marcador con reloj (90' escalados), radar/minimapa, carteles de gol, descanso y final, barra de potencia de tiro
 - **Cambio automático de jugador** al más cercano al balón (o manual con C)
 - **Efectos de sonido** generados con WebAudio (silbato, pases, goles…)
 - Partidos de duración configurable: 2:30, 4:00 o 6:00 minutos reales
