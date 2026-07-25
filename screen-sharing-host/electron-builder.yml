@@ -1,0 +1,26 @@
+appId: com.mariotech.screenSharing
+productName: Screen Sharing Host
+directories:
+  buildResources: assets
+files:
+  - dist
+  - package.json
+win:
+  target:
+    - nsis
+    - portable
+  certificateFile: null # Add later if signing
+  certificatePassword: null
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  identity: null # Add later
+  notarize: false
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Network

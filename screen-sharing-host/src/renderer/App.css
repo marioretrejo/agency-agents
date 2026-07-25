@@ -1,0 +1,122 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: #0f1420;
+  color: #e8ecf4;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+h1 {
+  font-size: 20px;
+}
+
+.platform {
+  font-size: 12px;
+  color: #8b93a7;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #1a2130;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8b93a7;
+}
+
+.status--connecting .status-dot { background: #e8b84b; }
+.status--streaming .status-dot { background: #4bd47e; }
+.status--disconnected .status-dot { background: #e8b84b; }
+.status--error .status-dot { background: #e85b5b; }
+
+.status-detail { color: #8b93a7; }
+
+button {
+  font: inherit;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2b344a;
+  color: #e8ecf4;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) { filter: brightness(1.15); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+button.primary {
+  background: #3b6ef5;
+  font-size: 16px;
+  padding: 14px;
+}
+
+button.danger { background: #a03535; }
+
+.room-code {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-align: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: #1a2130;
+  user-select: all;
+}
+
+.share-row {
+  display: flex;
+  gap: 8px;
+}
+
+.share-row input {
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #2b344a;
+  background: #131a29;
+  color: #e8ecf4;
+}
+
+.viewers h2 {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.viewers ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.muted { color: #8b93a7; font-size: 13px; }

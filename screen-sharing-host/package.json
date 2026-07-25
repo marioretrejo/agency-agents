@@ -1,0 +1,33 @@
+{
+  "name": "screen-sharing-host",
+  "version": "1.0.0",
+  "description": "Cross-platform Electron host app that captures and streams the screen over WebRTC",
+  "main": "dist/main.js",
+  "homepage": "./",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently \"npm run react-dev\" \"wait-on http://localhost:5173 && npm run electron-dev\"",
+    "react-dev": "vite",
+    "electron-dev": "tsc -p tsconfig.main.json && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "build": "vite build && tsc -p tsconfig.main.json",
+    "package": "npm run build && electron-builder",
+    "package:all": "npm run build && electron-builder -mwl --x64 --arm64"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.0",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "typescript": "^5.0.0",
+    "concurrently": "^8.0.0",
+    "wait-on": "^7.0.0",
+    "cross-env": "^7.0.3",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0"
+  }
+}

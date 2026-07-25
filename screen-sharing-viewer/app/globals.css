@@ -1,0 +1,126 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background: #0f1420;
+  color: #e8ecf4;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  overscroll-behavior: none;
+}
+
+.viewer-page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.viewer-canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background: #000;
+}
+
+.viewer-canvas-wrap canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: #1a2130;
+}
+
+.status-bar .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8b93a7;
+  flex-shrink: 0;
+}
+
+.status-bar .dot--connected { background: #4bd47e; }
+.status-bar .dot--connecting,
+.status-bar .dot--loading,
+.status-bar .dot--disconnected { background: #e8b84b; }
+.status-bar .dot--error { background: #e85b5b; }
+
+.status-bar .code {
+  font-family: ui-monospace, monospace;
+  letter-spacing: 2px;
+}
+
+.status-bar .latency { color: #8b93a7; margin-left: auto; }
+
+.connection-ui {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.connection-ui h1 { font-size: 22px; }
+.connection-ui p { color: #8b93a7; max-width: 420px; }
+
+.connection-ui form {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.connection-ui input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 18px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #2b344a;
+  background: #131a29;
+  color: #e8ecf4;
+}
+
+.connection-ui button {
+  font: inherit;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #3b6ef5;
+  color: #fff;
+  cursor: pointer;
+}
+
+.connection-ui .error { color: #e85b5b; }
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #2b344a;
+  border-top-color: #3b6ef5;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
