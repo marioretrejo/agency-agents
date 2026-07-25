@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ConnectionUI from './components/ConnectionUI';
+import Landing from './components/Landing';
 import ControlBar, { type ControlStatus } from './components/ControlBar';
 import StatusBar from './components/StatusBar';
 import Viewer from './components/Viewer';
@@ -239,19 +240,19 @@ function ViewerPage() {
     <main className="viewer-page">
       {isLive ? (
         <Viewer stream={stream} controlActive={controlStatus === 'active'} onInput={sendControl} />
+      ) : !roomFromUrl ? (
+        <Landing onCreate={handleCreate} onWatch={handleJoin} />
       ) : (
         <ConnectionUI
           status={
-            !roomFromUrl
-              ? 'idle'
-              : state.status === 'connected' || state.status === 'loading'
-                ? 'loading'
-                : state.status
+            state.status === 'connecting' ||
+            state.status === 'disconnected' ||
+            state.status === 'error'
+              ? state.status
+              : 'loading'
           }
-          roomCode={roomFromUrl || undefined}
-          errorMessage={roomFromUrl ? errorMessage : undefined}
-          onJoin={handleJoin}
-          onCreate={handleCreate}
+          roomCode={roomFromUrl}
+          errorMessage={errorMessage}
         />
       )}
 
