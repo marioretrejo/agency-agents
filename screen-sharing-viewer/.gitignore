@@ -9,3 +9,8 @@ next-env.d.ts
 *.tsbuildinfo
 .vercel
 .env*
+
+# Marketplace integration agent skills (auto-generated)
+.agents/
+.claude/
+skills-lock.json
