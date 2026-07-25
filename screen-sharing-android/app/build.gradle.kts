@@ -27,6 +27,18 @@ android {
         buildConfig = true
     }
 
+    // Split by ABI so each APK carries only one architecture's native WebRTC
+    // libs (the universal APK is ~48 MB; arm64-v8a alone is ~16 MB). Keep a
+    // universal APK too for convenience.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

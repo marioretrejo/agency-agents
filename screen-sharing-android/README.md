@@ -4,11 +4,16 @@ Native Android **host** app: shares this phone's screen and (optionally) lets an
 approved remote viewer control it — the Android counterpart of the desktop host,
 using the same signaling and viewer.
 
-> ⚠️ **Status: alpha scaffold, not yet verified on a device.** This project was
-> written without an Android SDK/emulator available, so it has **not been
-> compiled or run**. It's a complete, coherent starting point — expect to open
-> it in Android Studio, resolve any minor API/version issues, and iterate on a
-> real device. The web viewer + signaling it talks to *are* deployed and tested.
+> ⚠️ **Status: builds successfully; not yet runtime-tested on a device.**
+> The project **compiles cleanly** (`./gradlew assembleDebug`, AGP 8.5 / SDK 34)
+> and produces installable APKs. It has **not** been run on a real device yet,
+> so on-device behaviour (capture prompt, WebRTC connect, gesture injection)
+> still needs verification. The web viewer + signaling it talks to *are*
+> deployed and tested end-to-end.
+>
+> Build output: `app-arm64-v8a-debug.apk` (~18 MB, most phones),
+> `app-armeabi-v7a-debug.apk` (older 32-bit), `app-x86_64-debug.apk` (emulators),
+> and a universal `app-universal-debug.apk` (~48 MB).
 
 ## Why a native app (and not just a link)
 
