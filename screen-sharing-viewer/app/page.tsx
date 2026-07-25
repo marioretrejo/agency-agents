@@ -4,10 +4,12 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Socket } from 'socket.io-client';
 import ConnectionUI from './components/ConnectionUI';
+import ControlBar, { type ControlStatus } from './components/ControlBar';
 import StatusBar from './components/StatusBar';
 import Viewer from './components/Viewer';
 import { createSocket, measureLatency } from '@/lib/socket-client';
 import { answerOffer, setupPeerConnection } from '@/lib/webrtc';
+import type { HostToViewerMsg, ViewerToHostMsg } from '@/lib/control-types';
 import type { RoomJoinedInfo, ViewerState } from '@/lib/types';
 
 function ViewerPage() {
@@ -23,18 +25,63 @@ function ViewerPage() {
   });
   const [errorMessage, setErrorMessage] = useState('');
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [controlStatus, setControlStatus] = useState<ControlStatus>('none');
+  const [deniedReason, setDeniedReason] = useState('');
 
   const socketRef = useRef<Socket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const controlChannelRef = useRef<RTCDataChannel | null>(null);
 
   const patchState = useCallback((patch: Partial<ViewerState>) => {
     setState((prev) => ({ ...prev, ...patch }));
   }, []);
 
   const teardownPeer = useCallback(() => {
+    controlChannelRef.current?.close();
+    controlChannelRef.current = null;
     pcRef.current?.close();
     pcRef.current = null;
     setStream(null);
+    setControlStatus('none');
+  }, []);
+
+  const sendControl = useCallback((msg: ViewerToHostMsg) => {
+    const channel = controlChannelRef.current;
+    if (channel && channel.readyState === 'open') {
+      channel.send(JSON.stringify(msg));
+    }
+  }, []);
+
+  const handleHostControlMessage = useCallback((raw: unknown) => {
+    let msg: HostToViewerMsg;
+    try {
+      msg = JSON.parse(String(raw)) as HostToViewerMsg;
+    } catch {
+      return;
+    }
+    switch (msg.t) {
+      case 'granted':
+        console.log('[Viewer] control granted');
+        setControlStatus('active');
+        setDeniedReason('');
+        break;
+      case 'denied':
+        console.log('[Viewer] control denied:', msg.reason);
+        setControlStatus('denied');
+        setDeniedReason(msg.reason);
+        break;
+      case 'revoked':
+        console.log('[Viewer] control revoked by host');
+        setControlStatus('none');
+        break;
+      case 'clipboard':
+        navigator.clipboard?.writeText(msg.value).catch(() => {
+          /* clipboard permission may be denied; ignore */
+        });
+        break;
+      default:
+        break;
+    }
   }, []);
 
   useEffect(() => {
@@ -80,6 +127,16 @@ function ViewerPage() {
             console.log('[Viewer] remote track received');
             setStream(event.streams[0] ?? new MediaStream([event.track]));
             patchState({ status: 'connected' });
+          };
+
+          // The host creates the "control" DataChannel; we receive it here.
+          pc.ondatachannel = (event) => {
+            const channel = event.channel;
+            if (channel.label !== 'control') return;
+            controlChannelRef.current = channel;
+            channel.onopen = () => console.log('[Viewer] control channel open');
+            channel.onmessage = (e) => handleHostControlMessage(e.data);
+            channel.onclose = () => setControlStatus('none');
           };
 
           pc.onicecandidate = (event) => {
@@ -132,7 +189,6 @@ function ViewerPage() {
       patchState({ status: 'disconnected' });
     });
 
-    // Socket.io auto-reconnects; re-join the room when it does.
     socket.io.on('reconnect', () => {
       console.log('[Viewer] signaling reconnected, re-joining');
       socket.emit('viewer:join', { code: roomFromUrl });
@@ -150,7 +206,7 @@ function ViewerPage() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [roomFromUrl, patchState, teardownPeer]);
+  }, [roomFromUrl, patchState, teardownPeer, handleHostControlMessage]);
 
   const handleJoin = useCallback(
     (code: string) => {
@@ -159,10 +215,25 @@ function ViewerPage() {
     [router],
   );
 
+  const requestControl = useCallback(
+    (password: string) => {
+      setControlStatus('requested');
+      setDeniedReason('');
+      sendControl({ t: 'request', password: password || undefined });
+    },
+    [sendControl],
+  );
+
+  const releaseControl = useCallback(() => {
+    setControlStatus('none');
+  }, []);
+
+  const isLive = stream && state.status === 'connected';
+
   return (
     <main className="viewer-page">
-      {stream && state.status === 'connected' ? (
-        <Viewer stream={stream} />
+      {isLive ? (
+        <Viewer stream={stream} controlActive={controlStatus === 'active'} onInput={sendControl} />
       ) : (
         <ConnectionUI
           status={
@@ -176,6 +247,16 @@ function ViewerPage() {
           onJoin={handleJoin}
         />
       )}
+
+      {isLive && (
+        <ControlBar
+          status={controlStatus}
+          deniedReason={deniedReason}
+          onRequest={requestControl}
+          onRelease={releaseControl}
+        />
+      )}
+
       <StatusBar state={state} />
     </main>
   );

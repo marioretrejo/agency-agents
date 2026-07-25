@@ -1,6 +1,10 @@
 # screen-sharing-viewer
 
-Browser-based viewer for the cross-platform screen sharing MVP. Open a link like `https://viewer.example.com/?room=ABC123` and watch the host's screen live over WebRTC — no install, no plugins.
+Browser-based viewer and **remote-control client** for the cross-platform screen sharing MVP. Open a link like `https://viewer.example.com/?room=ABC123`, watch the host's screen live over WebRTC, and — once the host approves — drive its mouse and keyboard. No install, no plugins.
+
+## Remote control
+
+Click **Request control** to ask the host for mouse + keyboard access (optionally supplying an access password for unattended hosts). The host must approve; while control is active a green border and status bar appear, and every pointer/scroll/key event over the canvas is normalized and sent to the host over a WebRTC DataChannel. Click **Release control** to stop. The host can revoke at any time. Clipboard text is synced when control is granted.
 
 ## Compatibility
 
@@ -27,6 +31,7 @@ Open `http://localhost:3000/?room=CODE` (get a code from the host app), or open 
 - Reads `?room=CODE` from the URL, or shows a code-entry form
 - Socket.io signaling with automatic reconnect + room re-join
 - Receives the host's WebRTC offer, answers, exchanges ICE candidates
+- Remote control: request/release, normalized pointer + keyboard + scroll input over a DataChannel, clipboard sync
 - Status bar with connection state, room code, and signaling latency
 - Auto-recovers when the host restarts (new offer replaces the old peer connection)
 

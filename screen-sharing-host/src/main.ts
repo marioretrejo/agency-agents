@@ -1,5 +1,15 @@
 import { app, BrowserWindow, desktopCapturer, ipcMain, session, clipboard } from 'electron';
 import * as path from 'node:path';
+import {
+  getScreenSize,
+  isControlAvailable,
+  keyAction,
+  mouseButton,
+  moveMouse,
+  scroll,
+  typeText,
+} from './input';
+import type { KeyModifiers, MouseButtonName } from './control-types';
 
 // process.platform: 'win32' | 'darwin' | 'linux'
 const PLATFORM = process.platform;
@@ -95,6 +105,41 @@ ipcMain.handle('screen:get-sources', async () => {
 
 ipcMain.handle('clipboard:write', (_event, text: string) => {
   clipboard.writeText(String(text));
+});
+
+ipcMain.handle('clipboard:read', () => clipboard.readText());
+
+// --- Remote control input injection ---------------------------------------
+// These are only reachable once the renderer has confirmed a viewer's control
+// request was granted; the renderer gates every call behind that approval.
+
+ipcMain.handle('control:available', () => isControlAvailable());
+ipcMain.handle('control:screen-size', () => getScreenSize());
+
+ipcMain.on('input:mouse-move', (_event, x: number, y: number) => {
+  void moveMouse(x, y);
+});
+
+ipcMain.on(
+  'input:mouse-button',
+  (_event, button: MouseButtonName, down: boolean, x: number, y: number) => {
+    void mouseButton(button, down, x, y);
+  },
+);
+
+ipcMain.on('input:scroll', (_event, dx: number, dy: number) => {
+  void scroll(dx, dy);
+});
+
+ipcMain.on(
+  'input:key',
+  (_event, code: string, down: boolean, modifiers: KeyModifiers) => {
+    void keyAction(code, down, modifiers);
+  },
+);
+
+ipcMain.on('input:text', (_event, text: string) => {
+  void typeText(text);
 });
 
 // ---------------------------------------------------------------------------

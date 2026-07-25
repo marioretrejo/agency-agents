@@ -120,3 +120,81 @@ button.danger { background: #a03535; }
 }
 
 .muted { color: #8b93a7; font-size: 13px; }
+
+.control-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #3a1414;
+  border: 1px solid #a03535;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.warn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #3a2f14;
+  border: 1px solid #8a6d2a;
+  font-size: 13px;
+  color: #e8d9a8;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.field span { color: #8b93a7; }
+
+.field input {
+  font: inherit;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #2b344a;
+  background: #131a29;
+  color: #e8ecf4;
+}
+
+.requests {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #14223a;
+  border: 1px solid #2b4a6f;
+}
+
+.requests h2 { font-size: 14px; }
+
+.request-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.request-actions { display: flex; gap: 6px; }
+
+button.approve { background: #2e7d46; padding: 6px 12px; }
+button.deny { background: #a03535; padding: 6px 12px; }
+
+button.link {
+  background: none;
+  color: #7fa8ff;
+  padding: 0;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.viewers li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
