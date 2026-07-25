@@ -13,7 +13,7 @@
  * Runs in the renderer process, where the native RTCPeerConnection lives and
  * where `window.electronAPI` bridges to OS input injection in main.
  */
-import { io, type Socket } from 'socket.io-client';
+import { SignalingClient, type IncomingMessage } from './signaling-client';
 import type { HostToViewerMsg, ViewerToHostMsg } from '../control-types';
 
 export type HostStatus = 'idle' | 'connecting' | 'streaming' | 'disconnected' | 'error';
@@ -62,7 +62,7 @@ function applyCodecPreferences(pc: RTCPeerConnection): void {
 }
 
 export class HostSession {
-  private socket: Socket | null = null;
+  private client: SignalingClient | null = null;
   private peers = new Map<string, PeerEntry>();
   private stream: MediaStream | null = null;
   private roomCode = '';
@@ -92,63 +92,66 @@ export class HostSession {
     this.stream = stream;
     this.events.onStatus('connecting');
 
-    this.socket = io(this.serverUrl, {
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
+    const client = new SignalingClient(this.serverUrl, this.roomCode, 'host');
+    this.client = client;
+
+    client.onReady(() => {
+      log(`signaling ready as ${client.peerId}`);
+      this.events.onStatus('streaming');
     });
 
-    const socket = this.socket;
+    client.onReconnect(() => log('signaling reconnected, re-announced host'));
 
-    socket.on('connect', () => {
-      log(`signaling connected as ${socket.id}`);
-      socket.emit('host:join', { code: this.roomCode });
-    });
+    client.onMessage((msg: IncomingMessage) => this.handleSignal(msg));
 
-    socket.on('room:joined', () => this.events.onStatus('streaming'));
+    client.connect();
+  }
 
-    socket.on('room:error', (message: string) => {
-      log(`room error: ${message}`);
-      this.events.onStatus('error', message);
-    });
-
-    socket.on('viewer:connected', (viewerId: string) => {
-      log(`viewer connected: ${viewerId}`);
-      void this.connectViewer(viewerId);
-    });
-
-    socket.on('viewer:disconnected', (viewerId: string) => {
-      log(`viewer disconnected: ${viewerId}`);
-      this.closePeer(viewerId);
-    });
-
-    socket.on('webrtc:answer', (from: string, data: unknown) => {
-      void this.handleAnswer(from, data as RTCSessionDescriptionInit);
-    });
-
-    socket.on('webrtc:ice-candidate', (from: string, data: unknown) => {
-      const entry = this.peers.get(from);
-      if (entry && data) {
-        entry.pc
-          .addIceCandidate(new RTCIceCandidate(data as RTCIceCandidateInit))
-          .catch((err) => log('addIceCandidate failed', err));
+  private handleSignal(msg: IncomingMessage): void {
+    switch (msg.type) {
+      case 'viewer:connected':
+        if (msg.from) {
+          // A viewer re-announces itself on every SSE reconnect (~25s). Only
+          // (re)build the peer connection if we don't already have a live one
+          // for this viewerId — a genuine reload gets a fresh id and reconnects.
+          const existing = this.peers.get(msg.from);
+          const stale =
+            !existing ||
+            existing.pc.connectionState === 'failed' ||
+            existing.pc.connectionState === 'closed';
+          if (stale) {
+            log(`viewer connected: ${msg.from}`);
+            void this.connectViewer(msg.from);
+          } else {
+            log(`viewer ${msg.from} re-announced; keeping existing connection`);
+          }
+        }
+        break;
+      case 'viewer:disconnected':
+        if (msg.from) {
+          log(`viewer disconnected: ${msg.from}`);
+          this.closePeer(msg.from);
+        }
+        break;
+      case 'webrtc:answer':
+        if (msg.from) void this.handleAnswer(msg.from, msg.data as RTCSessionDescriptionInit);
+        break;
+      case 'webrtc:ice-candidate': {
+        const entry = msg.from ? this.peers.get(msg.from) : undefined;
+        if (entry && msg.data) {
+          entry.pc
+            .addIceCandidate(new RTCIceCandidate(msg.data as RTCIceCandidateInit))
+            .catch((err) => log('addIceCandidate failed', err));
+        }
+        break;
       }
-    });
-
-    socket.on('disconnect', (reason) => {
-      log(`signaling disconnected: ${reason}`);
-      this.events.onStatus('disconnected', reason);
-    });
-
-    socket.io.on('reconnect', () => {
-      log('signaling reconnected, re-joining room');
-      socket.emit('host:join', { code: this.roomCode });
-    });
+      default:
+        break;
+    }
   }
 
   private async connectViewer(viewerId: string): Promise<void> {
-    if (!this.stream || !this.socket) return;
+    if (!this.stream || !this.client) return;
     try {
       this.closePeer(viewerId); // drop any stale connection for this viewer
 
@@ -170,7 +173,7 @@ export class HostSession {
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          this.socket?.emit('webrtc:ice-candidate', { to: viewerId, data: event.candidate });
+          void this.client?.send('webrtc:ice-candidate', viewerId, event.candidate);
         }
       };
 
@@ -183,7 +186,7 @@ export class HostSession {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      this.socket.emit('webrtc:offer', { to: viewerId, data: offer });
+      await this.client.send('webrtc:offer', viewerId, offer);
       log(`offer sent to ${viewerId}`);
     } catch (err) {
       log(`failed to connect viewer ${viewerId}`, err);
@@ -313,8 +316,8 @@ export class HostSession {
 
   stopStreaming(): void {
     for (const id of [...this.peers.keys()]) this.closePeer(id);
-    this.socket?.disconnect();
-    this.socket = null;
+    this.client?.close();
+    this.client = null;
     this.stream = null;
     this.roomCode = '';
     this.events.onStatus('idle');

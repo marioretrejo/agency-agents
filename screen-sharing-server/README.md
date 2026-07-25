@@ -1,5 +1,13 @@
 # screen-sharing-server
 
+> ⚠️ **Legacy / reference.** Signaling now ships inside the
+> [`screen-sharing-viewer`](../screen-sharing-viewer) app as serverless SSE + POST
+> API routes, so the whole system runs on Vercel with no separate server. The
+> current host and viewer speak that SSE protocol and **do not** talk to this
+> Socket.io server. This project is kept as a reference / standalone option; to
+> use it you'd need the Socket.io transport the clients had before the SSE
+> switch. For deployment see the viewer's [DEPLOY.md](../screen-sharing-viewer/DEPLOY.md).
+
 WebRTC signaling server for the cross-platform screen sharing MVP. Manages rooms with 6-character codes and relays WebRTC offers/answers/ICE candidates between a host (Electron app) and viewers (web browsers) over Socket.io.
 
 ## Compatibility

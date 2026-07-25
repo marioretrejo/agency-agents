@@ -2,15 +2,18 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { Socket } from 'socket.io-client';
 import ConnectionUI from './components/ConnectionUI';
 import ControlBar, { type ControlStatus } from './components/ControlBar';
 import StatusBar from './components/StatusBar';
 import Viewer from './components/Viewer';
-import { createSocket, measureLatency } from '@/lib/socket-client';
+import { SignalingClient, measureLatency, type IncomingMessage } from '@/lib/signaling-client';
 import { answerOffer, setupPeerConnection } from '@/lib/webrtc';
 import type { HostToViewerMsg, ViewerToHostMsg } from '@/lib/control-types';
-import type { RoomJoinedInfo, ViewerState } from '@/lib/types';
+import type { ViewerState } from '@/lib/types';
+
+// Same-origin by default: the viewer's own /api routes are the signaling server.
+// Override only to point at an external signaling deployment.
+const SIGNAL_BASE = process.env.NEXT_PUBLIC_SIGNALING_SERVER ?? '';
 
 function ViewerPage() {
   const searchParams = useSearchParams();
@@ -28,7 +31,7 @@ function ViewerPage() {
   const [controlStatus, setControlStatus] = useState<ControlStatus>('none');
   const [deniedReason, setDeniedReason] = useState('');
 
-  const socketRef = useRef<Socket | null>(null);
+  const clientRef = useRef<SignalingClient | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const controlChannelRef = useRef<RTCDataChannel | null>(null);
 
@@ -61,17 +64,14 @@ function ViewerPage() {
     }
     switch (msg.t) {
       case 'granted':
-        console.log('[Viewer] control granted');
         setControlStatus('active');
         setDeniedReason('');
         break;
       case 'denied':
-        console.log('[Viewer] control denied:', msg.reason);
         setControlStatus('denied');
         setDeniedReason(msg.reason);
         break;
       case 'revoked':
-        console.log('[Viewer] control revoked by host');
         setControlStatus('none');
         break;
       case 'clipboard':
@@ -90,121 +90,111 @@ function ViewerPage() {
       return;
     }
 
-    patchState({ status: 'connecting', roomCode: roomFromUrl });
-    const socket = createSocket();
-    socketRef.current = socket;
+    let disposed = false;
+    let client: SignalingClient | null = null;
+    let latencyTimer: ReturnType<typeof setInterval> | null = null;
 
-    socket.on('connect', () => {
-      console.log(`[Viewer] signaling connected as ${socket.id}`);
-      socket.emit('viewer:join', { code: roomFromUrl });
-    });
+    const handleOffer = async (from: string, data: unknown) => {
+      try {
+        teardownPeer(); // host restarted or renegotiated: start clean
+        const pc = await setupPeerConnection();
+        pcRef.current = pc;
+        patchState({ hostId: from });
 
-    socket.on('room:joined', (info: RoomJoinedInfo) => {
-      console.log('[Viewer] joined room', info);
-      if (!info.hostConnected) {
-        patchState({ status: 'connecting' });
-        console.log('[Viewer] waiting for host to connect');
+        pc.ontrack = (event) => {
+          setStream(event.streams[0] ?? new MediaStream([event.track]));
+          patchState({ status: 'connected' });
+        };
+
+        // The host creates the "control" DataChannel; we receive it here.
+        pc.ondatachannel = (event) => {
+          const channel = event.channel;
+          if (channel.label !== 'control') return;
+          controlChannelRef.current = channel;
+          channel.onmessage = (e) => handleHostControlMessage(e.data);
+          channel.onclose = () => setControlStatus('none');
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            void client?.send('webrtc:ice-candidate', from, event.candidate);
+          }
+        };
+
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+            patchState({ status: 'disconnected' });
+          }
+        };
+
+        const answer = await answerOffer(pc, data as RTCSessionDescriptionInit);
+        await client?.send('webrtc:answer', from, answer);
+      } catch (err) {
+        console.error('[Viewer] failed to handle offer', err);
+        setErrorMessage('Failed to establish the video connection');
+        patchState({ status: 'error' });
       }
-    });
+    };
 
-    socket.on('room:error', (message: string) => {
-      console.error(`[Viewer] room error: ${message}`);
-      setErrorMessage(message);
-      patchState({ status: 'error' });
-    });
-
-    socket.on('webrtc:offer', (from: string, data: unknown) => {
-      void (async () => {
-        try {
-          console.log(`[Viewer] offer received from host ${from}`);
-          teardownPeer(); // host restarted or renegotiated: start clean
-
-          const pc = await setupPeerConnection();
-          pcRef.current = pc;
-          patchState({ hostId: from });
-
-          pc.ontrack = (event) => {
-            console.log('[Viewer] remote track received');
-            setStream(event.streams[0] ?? new MediaStream([event.track]));
-            patchState({ status: 'connected' });
-          };
-
-          // The host creates the "control" DataChannel; we receive it here.
-          pc.ondatachannel = (event) => {
-            const channel = event.channel;
-            if (channel.label !== 'control') return;
-            controlChannelRef.current = channel;
-            channel.onopen = () => console.log('[Viewer] control channel open');
-            channel.onmessage = (e) => handleHostControlMessage(e.data);
-            channel.onclose = () => setControlStatus('none');
-          };
-
-          pc.onicecandidate = (event) => {
-            if (event.candidate) {
-              socket.emit('webrtc:ice-candidate', { to: from, data: event.candidate });
-            }
-          };
-
-          pc.onconnectionstatechange = () => {
-            console.log(`[Viewer] peer state: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-              patchState({ status: 'disconnected' });
-            }
-          };
-
-          const answer = await answerOffer(pc, data as RTCSessionDescriptionInit);
-          socket.emit('webrtc:answer', { to: from, data: answer });
-          console.log('[Viewer] answer sent');
-        } catch (err) {
-          console.error('[Viewer] failed to handle offer', err);
-          setErrorMessage('Failed to establish the video connection');
-          patchState({ status: 'error' });
+    const onMessage = (msg: IncomingMessage) => {
+      switch (msg.type) {
+        case 'webrtc:offer':
+          if (msg.from) void handleOffer(msg.from, msg.data);
+          break;
+        case 'webrtc:ice-candidate': {
+          const pc = pcRef.current;
+          if (pc && msg.data) {
+            pc.addIceCandidate(new RTCIceCandidate(msg.data as RTCIceCandidateInit)).catch((err) =>
+              console.error('[Viewer] addIceCandidate failed', err),
+            );
+          }
+          break;
         }
-      })();
-    });
-
-    socket.on('webrtc:ice-candidate', (_from: string, data: unknown) => {
-      const pc = pcRef.current;
-      if (pc && data) {
-        pc.addIceCandidate(new RTCIceCandidate(data as RTCIceCandidateInit)).catch((err) =>
-          console.error('[Viewer] addIceCandidate failed', err),
-        );
+        case 'host:disconnected':
+          teardownPeer();
+          patchState({ status: 'disconnected', hostId: null });
+          break;
+        default:
+          break;
       }
-    });
+    };
 
-    socket.on('host:disconnected', () => {
-      console.log('[Viewer] host disconnected');
-      teardownPeer();
-      patchState({ status: 'disconnected', hostId: null });
-    });
-
-    socket.on('room:closed', () => {
-      setErrorMessage('The room was closed');
-      teardownPeer();
-      patchState({ status: 'error' });
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log(`[Viewer] signaling disconnected: ${reason}`);
-      patchState({ status: 'disconnected' });
-    });
-
-    socket.io.on('reconnect', () => {
-      console.log('[Viewer] signaling reconnected, re-joining');
-      socket.emit('viewer:join', { code: roomFromUrl });
-    });
-
-    const latencyTimer = setInterval(() => {
-      if (socket.connected) {
-        void measureLatency(socket).then((latency) => patchState({ latency }));
+    // Verify the room exists, then open signaling.
+    void (async () => {
+      patchState({ status: 'connecting', roomCode: roomFromUrl });
+      try {
+        const base = SIGNAL_BASE ? SIGNAL_BASE.replace(/\/$/, '') : '';
+        const res = await fetch(`${base}/api/rooms/${roomFromUrl}`, { cache: 'no-store' });
+        if (res.status === 404) {
+          setErrorMessage(`Room ${roomFromUrl} not found`);
+          patchState({ status: 'error' });
+          return;
+        }
+      } catch {
+        // Non-fatal: try to connect anyway.
       }
-    }, 2000);
+      if (disposed) return;
+
+      client = new SignalingClient(SIGNAL_BASE, roomFromUrl, 'viewer');
+      clientRef.current = client;
+      client.onMessage(onMessage);
+      client.connect();
+
+      latencyTimer = setInterval(() => {
+        void measureLatency(SIGNAL_BASE).then((latency) => patchState({ latency }));
+      }, 3000);
+    })();
+
+    const onPageHide = () => client?.close();
+    window.addEventListener('pagehide', onPageHide);
 
     return () => {
-      clearInterval(latencyTimer);
+      disposed = true;
+      window.removeEventListener('pagehide', onPageHide);
+      if (latencyTimer) clearInterval(latencyTimer);
       teardownPeer();
-      socket.disconnect();
-      socketRef.current = null;
+      client?.close();
+      clientRef.current = null;
     };
   }, [roomFromUrl, patchState, teardownPeer, handleHostControlMessage]);
 

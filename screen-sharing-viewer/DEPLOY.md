@@ -1,66 +1,79 @@
-# Deployment walkthrough (Vercel + Render)
+# Deployment — everything on Vercel
 
-The system has three parts. Two get deployed; one is a desktop app.
+The signaling server is built into this Next.js app as API routes (`app/api/*`),
+so the **web viewer and the signaling both run as one Vercel project**. There is
+no separate server to deploy. Media still flows peer-to-peer over WebRTC; the
+API is only used for the brief offer/answer/ICE handshake.
 
-| Part | Where | Why |
-|------|-------|-----|
-| `screen-sharing-viewer` | **Vercel** | Static/SSR Next.js — Vercel's sweet spot |
-| `screen-sharing-server` | **Render** (free) | Socket.io needs a persistent WebSocket server, which Vercel serverless can't hold |
-| `screen-sharing-host` | Desktop app | Runs on the machine being shared/controlled |
-
-> ⚠️ This is a **monorepo**. On both platforms you must set the **Root Directory** to the subfolder, or the build will fail.
-
----
-
-## Step 1 — Deploy the signaling server to Render
-
-1. Go to <https://dashboard.render.com> → **New** → **Blueprint**.
-2. Connect this GitHub repo. Render detects [`screen-sharing-server/render.yaml`](../screen-sharing-server/render.yaml).
-   - If you deploy the service manually instead of via blueprint: **New → Web Service**, set **Root Directory** = `screen-sharing-server`, **Runtime** = Docker, **Health Check Path** = `/health`.
-3. Deploy. You'll get a URL like `https://screen-sharing-server-xxxx.onrender.com`.
-4. Verify it's up: open `https://<that-url>/health` — you should see `{"status":"ok",...}`.
-
-> Render's free tier sleeps after inactivity; the first request may take ~30s to wake.
+| Part | Where |
+|------|-------|
+| Viewer **+ signaling** | **Vercel** (this app) |
+| Signaling state store | **Upstash Redis** (Vercel Marketplace integration) |
+| Host | Desktop app, points at the Vercel URL |
 
 ---
 
-## Step 2 — Deploy the viewer to Vercel
+## Step 1 — Import to Vercel
 
-1. Go to <https://vercel.com/new> and import this GitHub repo.
-2. **Set Root Directory to `screen-sharing-viewer`** (Vercel shows an "Edit" button next to Root Directory during import). This is the step people miss.
-3. Framework preset: **Next.js** (auto-detected).
-4. Add an **Environment Variable**:
-   - `NEXT_PUBLIC_SIGNALING_SERVER` = the Render URL from Step 1 (e.g. `https://screen-sharing-server-xxxx.onrender.com`)
-   - Must be `https://` — a browser on an `https` Vercel page cannot talk to an `http` server (mixed content).
-5. Deploy. You'll get a URL like `https://screen-sharing-viewer.vercel.app`.
+1. <https://vercel.com/new> → import this GitHub repo.
+2. **Set Root Directory to `screen-sharing-viewer`.** It's a monorepo — this is the step people miss.
+3. Framework preset: **Next.js** (auto-detected). Don't deploy yet — add storage first (Step 2).
+
+## Step 2 — Add Upstash Redis (required)
+
+On Vercel, an SSE request and a POST can land on **different** serverless
+instances, so signaling state must live in a shared store, not in memory.
+
+1. In your Vercel project → **Storage** → **Marketplace** → add **Upstash for Redis** (free tier is fine).
+2. Connect it to the project. Vercel injects `UPSTASH_REDIS_REST_URL` and
+   `UPSTASH_REDIS_REST_TOKEN` automatically — the app picks them up with no code changes.
+
+> Skipping this "works" only by luck when requests reuse one warm instance; it will drop signals in production. Add the store.
+
+## Step 3 — Deploy
+
+Deploy. You get a URL like `https://screen-sharing-viewer.vercel.app`. That single
+URL is both the viewer and the signaling server.
+
+- Sanity checks: `https://<url>/api/ping` returns `{"t":...}`, and
+  `POST https://<url>/api/rooms/create` returns a room code.
+- The viewer needs **no** `NEXT_PUBLIC_SIGNALING_SERVER` — it calls its own `/api` same-origin.
+
+## Step 4 — (Optional) lock down CORS
+
+The viewer is same-origin, but the desktop host calls the API cross-origin. By
+default any origin is allowed. To restrict it, set `SIGNALING_CORS_ORIGIN` to the
+host's origin and redeploy. (For the packaged Electron app the origin is
+`file://`, which sends `Origin: null`; leave CORS open or handle that explicitly
+if you lock it down.)
 
 ---
 
-## Step 3 — Lock down CORS (recommended)
+## Step 5 — Run the host against production
 
-Back in Render, set the service's `CORS_ORIGIN` env var to your exact Vercel URL
-(`https://screen-sharing-viewer.vercel.app`) instead of `*`, then redeploy.
-
----
-
-## Step 4 — Run the host and point it at production
-
-On the machine you want to share:
+On the machine you want to share/control:
 
 ```bash
 cd screen-sharing-host
 npm install
-SIGNALING_SERVER=https://screen-sharing-server-xxxx.onrender.com \
+SIGNALING_SERVER=https://screen-sharing-viewer.vercel.app \
 VIEWER_URL=https://screen-sharing-viewer.vercel.app \
 npm run dev
 ```
 
-Click **Create Room** → the copy-to-clipboard link now points at your live Vercel
-viewer, e.g. `https://screen-sharing-viewer.vercel.app/?room=ABC123`. Open that on
-any other device, click **Request control**, approve it on the host.
+Click **Create Room** → the copy-to-clipboard link points at your live viewer,
+e.g. `https://screen-sharing-viewer.vercel.app/?room=ABC123`. Open it on any
+device, click **Request control**, approve on the host.
 
-To ship a real installer instead of `npm run dev`, set the same two env vars at
-build time and run `npm run package` (see the host README).
+For a real installer instead of `npm run dev`, set the same two env vars at build
+time and run `npm run package` (see the host README).
+
+---
+
+## Local development (no Vercel, no Redis)
+
+`npm run dev` uses an in-memory backend that works because `next dev` is a single
+process. Run the host with `SIGNALING_SERVER=http://localhost:3000`.
 
 ---
 
@@ -71,4 +84,12 @@ restrictive networks** may fail to connect peer-to-peer without a **TURN relay**
 If video never appears across networks, add a TURN server to `iceServers` in both
 `screen-sharing-viewer/lib/webrtc.ts` and `screen-sharing-host/src/lib/webrtc.ts`
 (e.g. a free [Metered](https://www.metered.ca/tools/openrelay/) or self-hosted
-coturn). Same network / same-machine testing does not need TURN.
+coturn). Same-network / same-machine testing does not need TURN.
+
+## Notes on serverless signaling
+
+- The SSE stream closes after ~25s and the client reconnects automatically;
+  queued messages wait in Redis, so a reconnect gap doesn't lose signals.
+- First connection after idle may cold-start (~1–2s).
+- The standalone `screen-sharing-server` (Socket.io) is **legacy** and is no
+  longer used by these clients — they speak the SSE/POST protocol above.
