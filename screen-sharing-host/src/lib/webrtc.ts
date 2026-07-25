@@ -88,6 +88,17 @@ export class HostSession {
     return room.code;
   }
 
+  /** Join a room the controller already created and shared the code for. */
+  async joinRoom(code: string): Promise<string> {
+    const normalized = code.trim().toUpperCase();
+    const res = await fetch(`${this.serverUrl}/api/rooms/${normalized}`);
+    if (res.status === 404) throw new Error(`Room ${normalized} not found`);
+    if (!res.ok) throw new Error(`Room lookup failed: HTTP ${res.status}`);
+    this.roomCode = normalized;
+    log(`joining existing room: ${normalized}`);
+    return normalized;
+  }
+
   startStreaming(stream: MediaStream): void {
     this.stream = stream;
     this.events.onStatus('connecting');

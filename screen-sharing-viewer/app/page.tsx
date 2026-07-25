@@ -206,6 +206,20 @@ function ViewerPage() {
     [router],
   );
 
+  const handleCreate = useCallback(async () => {
+    try {
+      const base = SIGNAL_BASE ? SIGNAL_BASE.replace(/\/$/, '') : '';
+      const res = await fetch(`${base}/api/rooms/create`, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const room = (await res.json()) as { code: string };
+      router.push(`/?room=${encodeURIComponent(room.code)}`);
+    } catch (err) {
+      console.error('[Viewer] failed to create session', err);
+      setErrorMessage('Could not create a session. Please try again.');
+      patchState({ status: 'error' });
+    }
+  }, [router, patchState]);
+
   const requestControl = useCallback(
     (password: string) => {
       setControlStatus('requested');
@@ -234,8 +248,10 @@ function ViewerPage() {
                 ? 'loading'
                 : state.status
           }
+          roomCode={roomFromUrl || undefined}
           errorMessage={roomFromUrl ? errorMessage : undefined}
           onJoin={handleJoin}
+          onCreate={handleCreate}
         />
       )}
 

@@ -224,7 +224,14 @@ export async function routeMessage(
 
   switch (body.type) {
     case 'host:join':
-      if (body.from) await b.setHost(code, body.from);
+      if (body.from) {
+        await b.setHost(code, body.from);
+        // If viewers were already waiting (e.g. the controller created the room
+        // and shared the code first), tell the host about each so it sends offers.
+        for (const v of await b.getViewers(code)) {
+          await b.push(code, body.from, { type: 'viewer:connected', from: v });
+        }
+      }
       return { ok: true };
 
     case 'viewer:join':

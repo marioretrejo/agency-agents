@@ -22,6 +22,7 @@ export default function App() {
   const [controlledBy, setControlledBy] = useState<string[]>([]);
   const [controlAvailable, setControlAvailable] = useState(true);
   const [accessPassword, setAccessPassword] = useState('');
+  const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
   const sessionRef = useRef<HostSession | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -45,37 +46,51 @@ export default function App() {
     };
   }, []);
 
-  const handleCreateRoom = useCallback(async () => {
-    if (!config) return;
-    try {
-      setStatus('connecting');
-      setStatusDetail('');
+  const startSession = useCallback(
+    async (getCode: (s: HostSession) => Promise<string>) => {
+      if (!config) return;
+      try {
+        setStatus('connecting');
+        setStatusDetail('');
 
-      const session = new HostSession(config.signalingServer, {
-        onStatus: (s, detail) => {
-          setStatus(s);
-          setStatusDetail(detail ?? '');
-        },
-        onViewersChanged: setViewers,
-        onControlRequest: (viewerId) =>
-          setPendingRequests((prev) => (prev.includes(viewerId) ? prev : [...prev, viewerId])),
-        onControlledByChanged: setControlledBy,
-      });
-      session.setAccessPassword(accessPassword);
-      sessionRef.current = session;
+        const session = new HostSession(config.signalingServer, {
+          onStatus: (s, detail) => {
+            setStatus(s);
+            setStatusDetail(detail ?? '');
+          },
+          onViewersChanged: setViewers,
+          onControlRequest: (viewerId) =>
+            setPendingRequests((prev) => (prev.includes(viewerId) ? prev : [...prev, viewerId])),
+          onControlledByChanged: setControlledBy,
+        });
+        session.setAccessPassword(accessPassword);
+        sessionRef.current = session;
 
-      const code = await session.createRoom();
-      setRoomCode(code);
+        const code = await getCode(session);
+        setRoomCode(code);
 
-      const stream = await captureScreen();
-      streamRef.current = stream;
-      session.startStreaming(stream);
-    } catch (err) {
-      console.error('[Host] failed to start session', err);
-      setStatus('error');
-      setStatusDetail(err instanceof Error ? err.message : 'Unknown error');
-    }
-  }, [config, accessPassword]);
+        const stream = await captureScreen();
+        streamRef.current = stream;
+        session.startStreaming(stream);
+      } catch (err) {
+        console.error('[Host] failed to start session', err);
+        setStatus('error');
+        setStatusDetail(err instanceof Error ? err.message : 'Unknown error');
+      }
+    },
+    [config, accessPassword],
+  );
+
+  const handleCreateRoom = useCallback(
+    () => startSession((s) => s.createRoom()),
+    [startSession],
+  );
+
+  const handleJoinRoom = useCallback(() => {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length !== 6) return;
+    void startSession((s) => s.joinRoom(code));
+  }, [startSession, joinCode]);
 
   const handleStop = useCallback(() => {
     sessionRef.current?.stopStreaming();
@@ -147,6 +162,31 @@ export default function App() {
 
       {!roomCode ? (
         <>
+          <section className="join">
+            <h2>Someone sent you a code?</h2>
+            <p className="muted">
+              Enter the code they shared to start sharing your screen with them.
+            </p>
+            <div className="join-row">
+              <input
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="ABC123"
+                maxLength={6}
+                aria-label="Room code to join"
+              />
+              <button
+                className="primary"
+                onClick={handleJoinRoom}
+                disabled={!config || status === 'connecting' || joinCode.trim().length !== 6}
+              >
+                Share my screen
+              </button>
+            </div>
+          </section>
+
+          <div className="divider">or</div>
+
           <label className="field">
             <span>Unattended access password (optional)</span>
             <input
@@ -157,11 +197,11 @@ export default function App() {
             />
           </label>
           <button
-            className="primary"
+            className="secondary"
             onClick={handleCreateRoom}
             disabled={!config || status === 'connecting'}
           >
-            Create Room
+            Create a new room instead
           </button>
         </>
       ) : (

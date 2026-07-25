@@ -76,6 +76,52 @@ button.primary {
   padding: 14px;
 }
 
+button.secondary {
+  background: #2b344a;
+  font-size: 14px;
+  padding: 12px;
+}
+
+.join {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #14223a;
+  border: 1px solid #2b4a6f;
+}
+
+.join h2 { font-size: 15px; }
+
+.join-row {
+  display: flex;
+  gap: 8px;
+}
+
+.join-row input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 20px;
+  letter-spacing: 4px;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #2b344a;
+  background: #0f1420;
+  color: #e8ecf4;
+}
+
+.divider {
+  text-align: center;
+  color: #8b93a7;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
 button.danger { background: #a03535; }
 
 .room-code {

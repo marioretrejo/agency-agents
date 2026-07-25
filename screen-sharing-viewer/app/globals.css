@@ -159,6 +159,57 @@ body {
 
 .connection-ui .error { color: #e85b5b; }
 
+.connection-ui .divider {
+  color: #8b93a7;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.connection-ui button.create {
+  font: inherit;
+  padding: 12px 20px;
+  border: 1px solid #3b6ef5;
+  border-radius: 8px;
+  background: transparent;
+  color: #7fa8ff;
+  cursor: pointer;
+}
+
+.connection-ui .hint {
+  font-size: 13px;
+  color: #8b93a7;
+  max-width: 340px;
+}
+
+.share-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.big-code {
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 10px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: #131a29;
+  border: 1px solid #2b4a6f;
+  user-select: all;
+}
+
+.share-code button {
+  font: inherit;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #3b6ef5;
+  color: #fff;
+  cursor: pointer;
+}
+
 .spinner {
   width: 32px;
   height: 32px;
