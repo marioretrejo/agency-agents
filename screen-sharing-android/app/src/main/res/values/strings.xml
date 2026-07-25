@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Screen Sharing Host</string>
+    <string name="intro">Enter the code the other person shared to share your screen with them.</string>
+    <string name="share_button">Share my screen</string>
+    <string name="control_button">Enable remote control (accessibility)</string>
+    <string name="stop_button">Stop sharing</string>
+    <string name="status_idle">Not sharing</string>
+    <string name="status_sharing">Sharing to room %1$s</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="accessibility_description">Lets an approved remote viewer control this device (taps and scrolling) during a screen-sharing session.</string>
+</resources>
