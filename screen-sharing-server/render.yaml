@@ -1,0 +1,20 @@
+# Render blueprint for the signaling server.
+# Deploy: https://dashboard.render.com/blueprints -> New Blueprint Instance ->
+# point at this repo. Render reads this file and provisions the service.
+#
+# Because this lives in a monorepo, rootDir scopes the build to the server folder.
+services:
+  - type: web
+    name: screen-sharing-server
+    runtime: docker
+    rootDir: screen-sharing-server
+    dockerfilePath: Dockerfile
+    healthCheckPath: /health
+    plan: free
+    autoDeploy: true
+    envVars:
+      # Render injects PORT automatically; the server reads it. Do not hardcode.
+      - key: CORS_ORIGIN
+        # Set this to your Vercel viewer URL in production, e.g.
+        # https://screen-sharing-viewer.vercel.app  ("*" is fine for testing).
+        value: "*"

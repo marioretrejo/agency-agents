@@ -39,7 +39,9 @@ Open `http://localhost:3000/?room=CODE` (get a code from the host app), or open 
 
 ### Vercel
 
-Import the repo, set `NEXT_PUBLIC_SIGNALING_SERVER` to your deployed server URL, deploy. No other configuration needed.
+Import the repo, **set Root Directory to `screen-sharing-viewer`** (this is a monorepo), set `NEXT_PUBLIC_SIGNALING_SERVER` to your deployed server's `https://` URL, deploy.
+
+The signaling server can't run on Vercel (it needs persistent WebSockets) — deploy it to Render/Railway/Fly. Full step-by-step for both in **[DEPLOY.md](DEPLOY.md)**.
 
 ### Self-hosted
 
