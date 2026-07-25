@@ -22,11 +22,21 @@ function SharePage() {
   const [status, setStatus] = useState<ShareStatus>('idle');
   const [detail, setDetail] = useState('');
   const [viewers, setViewers] = useState(0);
+  const [canShare, setCanShare] = useState(true);
   const sessionRef = useRef<BrowserHostSession | null>(null);
 
   useEffect(() => {
     setCode(roomFromUrl);
   }, [roomFromUrl]);
+
+  useEffect(() => {
+    // Phones can't screen-share from the browser: iOS Safari and Android
+    // Chrome don't implement getDisplayMedia. Detect it up front.
+    const supported =
+      typeof navigator !== 'undefined' &&
+      typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+    setCanShare(supported);
+  }, []);
 
   useEffect(() => {
     return () => sessionRef.current?.stop();
@@ -83,7 +93,33 @@ function SharePage() {
           remote control they'll need you to run the desktop app instead.
         </p>
 
-        {!isSharing ? (
+        {!canShare ? (
+          <div className="unsupported">
+            <p>
+              📱 <strong>Sharing a phone's screen from the browser isn't possible.</strong> Neither
+              iPhone (Safari) nor Android (Chrome) lets a web page capture the screen — it's an OS
+              restriction, not a bug here.
+            </p>
+            <p className="muted">What works instead:</p>
+            <ul className="muted">
+              <li>
+                <strong>Share from a computer</strong> (Windows/Mac/Linux) — open this page in a
+                desktop browser and it works.
+              </li>
+              <li>
+                <strong>Android phone:</strong> install the native app to share (and be controlled).
+              </li>
+              <li>
+                <strong>iPhone:</strong> Apple does not allow remote control of iOS by any app;
+                screen <em>viewing</em> would require a native iOS app (ReplayKit), not a link.
+              </li>
+            </ul>
+            <p className="muted">
+              Tip: your phone works great as the <strong>viewer</strong> — open the invite link on
+              it to <em>watch</em> a computer's screen.
+            </p>
+          </div>
+        ) : !isSharing ? (
           <>
             <label className="field">
               <span>Invitation code</span>

@@ -375,6 +375,10 @@ body {
 }
 .control-note a { color: #7fa8ff; }
 
+.unsupported { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.unsupported ul { margin: 0 0 0 18px; display: flex; flex-direction: column; gap: 6px; }
+.unsupported li { font-size: 13px; }
+
 .spinner {
   width: 32px;
   height: 32px;
