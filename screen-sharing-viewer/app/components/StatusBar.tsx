@@ -3,6 +3,7 @@
 import type { ViewerState } from '@/lib/types';
 
 const LABEL: Record<ViewerState['status'], string> = {
+  idle: 'Enter a room code',
   loading: 'Loading…',
   connecting: 'Connecting…',
   connected: 'Live',

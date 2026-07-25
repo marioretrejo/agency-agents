@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 
 interface ConnectionUIProps {
-  status: 'loading' | 'connecting' | 'disconnected' | 'error';
+  status: 'idle' | 'loading' | 'connecting' | 'disconnected' | 'error';
   errorMessage?: string;
   onJoin: (code: string) => void;
 }

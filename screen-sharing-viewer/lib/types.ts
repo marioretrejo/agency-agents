@@ -1,5 +1,5 @@
 export interface ViewerState {
-  status: 'loading' | 'connecting' | 'connected' | 'disconnected' | 'error';
+  status: 'idle' | 'loading' | 'connecting' | 'connected' | 'disconnected' | 'error';
   roomCode: string;
   latency: number;
   hostId: string | null;

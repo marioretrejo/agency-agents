@@ -86,7 +86,8 @@ function ViewerPage() {
 
   useEffect(() => {
     if (!roomFromUrl) {
-      patchState({ status: 'error' });
+      // No room code in the URL yet — show the join form, not an error.
+      patchState({ status: 'idle' });
       return;
     }
 
@@ -228,7 +229,7 @@ function ViewerPage() {
         <ConnectionUI
           status={
             !roomFromUrl
-              ? 'error'
+              ? 'idle'
               : state.status === 'connected' || state.status === 'loading'
                 ? 'loading'
                 : state.status
