@@ -376,8 +376,22 @@ body {
 .control-note a { color: #7fa8ff; }
 
 .unsupported { display: flex; flex-direction: column; gap: 10px; text-align: left; }
-.unsupported ul { margin: 0 0 0 18px; display: flex; flex-direction: column; gap: 6px; }
+.unsupported ul, .unsupported ol { margin: 0 0 0 18px; display: flex; flex-direction: column; gap: 6px; }
 .unsupported li { font-size: 13px; }
+.unsupported .small { font-size: 12px; }
+
+.download-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 15px;
+  border-radius: 12px;
+  background: #2e7d46;
+  color: #fff;
+}
+.download-btn:active { filter: brightness(0.9); }
 
 .spinner {
   width: 32px;

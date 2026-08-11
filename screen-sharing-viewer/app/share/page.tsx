@@ -23,6 +23,7 @@ function SharePage() {
   const [detail, setDetail] = useState('');
   const [viewers, setViewers] = useState(0);
   const [canShare, setCanShare] = useState(true);
+  const [platform, setPlatform] = useState<'android' | 'ios' | 'other'>('other');
   const sessionRef = useRef<BrowserHostSession | null>(null);
 
   useEffect(() => {
@@ -36,6 +37,11 @@ function SharePage() {
       typeof navigator !== 'undefined' &&
       typeof navigator.mediaDevices?.getDisplayMedia === 'function';
     setCanShare(supported);
+
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    if (/Android/i.test(ua)) setPlatform('android');
+    else if (/iPhone|iPad|iPod/i.test(ua)) setPlatform('ios');
+    else setPlatform('other');
   }, []);
 
   useEffect(() => {
@@ -93,13 +99,46 @@ function SharePage() {
           remote control they'll need you to run the desktop app instead.
         </p>
 
-        {!canShare ? (
+        {!canShare && platform === 'android' ? (
+          <div className="unsupported">
+            <p>
+              📱 To share <strong>your Android screen</strong>, install the app — Android's browser
+              can't capture the screen (that's why sharing here won't work). It's one tap:
+            </p>
+            <a className="download-btn" href="/downloads/screen-sharing-host.apk" download>
+              ⬇️ Download Android app
+            </a>
+            <ol className="muted steps">
+              <li>Tap the button, then open the downloaded file.</li>
+              <li>Allow “install from this source” if Android asks.</li>
+              <li>
+                Open <strong>Screen Sharing Host</strong>, enter your code{' '}
+                {code ? <strong>{code}</strong> : '(from the inviter)'}, tap <strong>Share my
+                screen</strong>.
+              </li>
+              <li>
+                For control too: tap <strong>Enable remote control</strong> and turn on the
+                accessibility service.
+              </li>
+            </ol>
+            <p className="muted small">
+              Prefer no install? Your phone also works as the <strong>viewer</strong> — open the
+              invite link to <em>watch</em> a computer's screen.
+            </p>
+          </div>
+        ) : !canShare ? (
           <div className="unsupported">
             <p>
               📱 <strong>Sharing a phone's screen from the browser isn't possible.</strong> Neither
               iPhone (Safari) nor Android (Chrome) lets a web page capture the screen — it's an OS
               restriction, not a bug here.
             </p>
+            {platform === 'ios' && (
+              <p className="muted">
+                On <strong>iPhone</strong>, Apple doesn't allow remote control by any app, and
+                screen <em>viewing</em> would need a native iOS app — not a link.
+              </p>
+            )}
             <p className="muted">What works instead:</p>
             <ul className="muted">
               <li>
@@ -107,17 +146,10 @@ function SharePage() {
                 desktop browser and it works.
               </li>
               <li>
-                <strong>Android phone:</strong> install the native app to share (and be controlled).
-              </li>
-              <li>
-                <strong>iPhone:</strong> Apple does not allow remote control of iOS by any app;
-                screen <em>viewing</em> would require a native iOS app (ReplayKit), not a link.
+                <strong>Watch from this phone:</strong> open the invite link to <em>view</em> a
+                computer's screen — that works great here.
               </li>
             </ul>
-            <p className="muted">
-              Tip: your phone works great as the <strong>viewer</strong> — open the invite link on
-              it to <em>watch</em> a computer's screen.
-            </p>
           </div>
         ) : !isSharing ? (
           <>
